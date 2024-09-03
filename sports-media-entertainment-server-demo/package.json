@@ -1,0 +1,16 @@
+{
+  "name": "sports-media-entertainment-server-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pubnub/chat": "^0.8.1",
+    "express": "^4.19.2"
+  }
+}
