@@ -2,12 +2,13 @@ const { Chat } = require("@pubnub/chat");
 const { simulateGame } = require('./simulateGame');
 const { simulatePreGameBetting } = require('./simulatePreBetting');
 const { createChannel } = require('./utils');
+require('dotenv').config();
 
 const main = async () => {
   const chat = await Chat.init({
-    publishKey: 'pub-c-88b8ad7c-3270-45f8-97ce-f82a451b58ac',
-    subscribeKey: 'sub-c-722c2adb-390f-4153-849a-fa5700e5eaf2',
-    secretKey: 'sec-c-OGJhOGRhOGMtNGY4NC00MTM0LThhZjEtYWY3ZTg2MDU3M2U3',
+    publishKey: process.env.PUBNUB_PUBLISH_KEY,  // Loaded from .env
+    subscribeKey: process.env.PUBNUB_SUBSCRIBE_KEY,  // Loaded from .env
+    secretKey: process.env.PUBNUB_SECRET_KEY,  // Loaded from .env
     userId: "SIM"
   });
 

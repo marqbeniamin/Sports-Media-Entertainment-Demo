@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@pubnub/chat": "^0.8.1",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2"
   }
 }
