@@ -5,6 +5,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { FiChevronRight } from 'react-icons/fi';
 
 type Odd = {
+  GameOddId: string;
   Sportsbook: string;
   HomeMoneyLine: number;
   AwayMoneyLine: number;
@@ -71,14 +72,14 @@ const BettingComponent: React.FC = () => {
         </div>
       ) : (
         <div className="relative grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {displayedOdds.map((odd, index) => (
+          {displayedOdds.map((odd) => (
             <div
-              key={index}
+              key={odd?.GameOddId || odd.Sportsbook} // Ensure this key is unique and stable
               className={`relative flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-colors duration-300 ${
                 selectedOdd === odd ? 'bg-blue-600 border-blue-400' : 'bg-gray-700 border-gray-600'
               }`}
               onClick={() => handleBetSelection(odd)}
-              style={{ marginRight: index === displayedOdds.length - 1 ? '3rem' : '0' }} // Add space for the arrow
+              style={{ marginRight: displayedOdds.indexOf(odd) === displayedOdds.length - 1 ? '3rem' : '0' }}
             >
               <span className="text-lg font-bold">{odd.Sportsbook}</span>
               <div className="flex flex-col items-center mt-2">

@@ -12,6 +12,7 @@ const YoutubeVideoComponent = () => {
   }>({ startTimeInSeconds: null, endTimeInSeconds: null });
 
   const [countdown, setCountdown] = useState<number>(120); // 2 minutes in seconds
+  const [isPlayerReady, setIsPlayerReady] = useState(false); // Track player readiness
 
   useEffect(() => {
     if (isIntermission) {
@@ -35,8 +36,7 @@ const YoutubeVideoComponent = () => {
     };
 
     const initializePlayer = (startTime: number) => {
-      if (playerContainerRef.current) {
-        playerContainerRef.current.innerHTML = ''; // Clear any previous player
+      if (playerContainerRef.current && !playerRef.current) {
         const playerElement = document.createElement('div');
         playerElement.id = 'youtube-player';
         playerContainerRef.current.appendChild(playerElement);
@@ -47,60 +47,55 @@ const YoutubeVideoComponent = () => {
             autoplay: 1,
             controls: 0,
             enablejsapi: 1,
-            start: startTime, // Start the video at the desired time
-            modestbranding: 1, // Optional: remove YouTube logo
-            rel: 0, // Optional: disable related videos
+            start: startTime,
+            modestbranding: 1,
+            rel: 0,
           },
           events: {
             onReady: onPlayerReady,
             onStateChange: onPlayerStateChange,
-            onError: onPlayerError, // Handle potential errors
+            onError: onPlayerError,
           },
         });
       }
     };
 
     const onPlayerReady = () => {
-      playerRef.current.setVolume(2); // Set the volume to low (2 out of 100)
+      playerRef.current.setVolume(2);
+      setIsPlayerReady(true); // Player is ready
       syncVideoWithGameState();
     };
 
     const onPlayerStateChange = (event: any) => {
       if (event.data === (window as any).YT.PlayerState.ENDED) {
-        // Optionally reload the player or handle the end of the video
+        // Handle video end
       }
     };
 
     const onPlayerError = (error: any) => {
       console.error('YouTube Player Error:', error);
-      // Handle errors, such as reloading the player or showing a message
     };
 
     const syncVideoWithGameState = () => {
-      if (playerRef.current && videoSyncData) {
+      if (playerRef.current && videoSyncData && isPlayerReady) {
         const { startTimeInSeconds, endTimeInSeconds } = videoSyncData;
         const videoTimeInSeconds = playerRef.current.getCurrentTime();
 
-        // Add 10 seconds to the startTimeInSeconds
         const adjustedStartTimeInSeconds = startTimeInSeconds + 10;
 
-        // Sync only if videoSyncData has actually changed
         if (
           startTimeInSeconds !== previousVideoSyncData.startTimeInSeconds ||
           endTimeInSeconds !== previousVideoSyncData.endTimeInSeconds
         ) {
-          // Only seek if the current time is significantly different from the adjusted start time
           if (videoTimeInSeconds < adjustedStartTimeInSeconds || Math.abs(adjustedStartTimeInSeconds - videoTimeInSeconds) > 5) {
             try {
               playerRef.current.seekTo(adjustedStartTimeInSeconds, true);
               playerRef.current.playVideo();
             } catch (error) {
               console.error('Error during seek:', error);
-              // Handle any errors during the seek operation
             }
           }
 
-          // Update previousVideoSyncData to avoid unnecessary syncing
           setPreviousVideoSyncData({ startTimeInSeconds, endTimeInSeconds });
         }
       }
@@ -112,15 +107,16 @@ const YoutubeVideoComponent = () => {
 
     loadYouTubeIframeAPI();
 
-    const syncInterval = setInterval(syncVideoWithGameState, 10000); // Re-sync every 10 seconds
+    const syncInterval = setInterval(syncVideoWithGameState, 10000);
 
     return () => {
       clearInterval(syncInterval);
       if (playerRef.current) {
         playerRef.current.destroy();
+        playerRef.current = null; // Ensure cleanup
       }
     };
-  }, [videoSyncData, previousVideoSyncData]);
+  }, [videoSyncData, previousVideoSyncData, isPlayerReady]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -136,7 +132,6 @@ const YoutubeVideoComponent = () => {
           <p className="text-2xl">Game resumes in {formatTime(countdown)}</p>
         </div>
       )}
-      {/* YouTube Player will be dynamically injected here */}
     </div>
   );
 };
