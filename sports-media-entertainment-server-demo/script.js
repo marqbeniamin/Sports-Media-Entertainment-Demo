@@ -12,9 +12,9 @@ const main = async () => {
     userId: "SIM"
   });
 
-  const channelId = 'play-by-play-2023-11-14-OKC-SAS';
-  const pollChannelId = 'poll-play-by-play-2023-11-14-OKC-SAS';
-  const bettingChannelId = 'betting-play-by-play-2023-11-14-OKC-SAS'; // New betting channel
+  const channelId = 'play-by-play-nets-magic-test';
+  const pollChannelId = 'poll-play-by-play-nets-magic-test';
+  const bettingChannelId = 'betting-play-by-play-nets-magic-test';
 
   let channel = await chat.getChannel(channelId);
   let pollChannel = await chat.getChannel(pollChannelId);

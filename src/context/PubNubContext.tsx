@@ -26,11 +26,21 @@ export interface PubNubType {
   createUser: (username: string, profileImg: string) => Promise<void>;
   createChannel: (id: string) => Promise<void>;
   createPollChannel: (id: string) => Promise<void>;
-  subscribeToGame: (id: string) => void;
-  subscribeToPoll: (id: string) => void;
+  subscribeToGame: (id: string) => Promise<void>;
+  subscribeToPoll: (id: string) => Promise<void>;
   subscribeToBetting: (id: string) => Promise<void>;
   submitPollResult: (vote: "Home" | "Away" | "Tie") => Promise<void>;
+  placeBet: (betDetails: BetDetails) => Promise<void>;
+  calculateResults: () => void;
 }
+
+// Define bet details
+type BetDetails = {
+  team: "Home" | "Away";
+  amount: number;
+  odds: number;
+  completed?: boolean; // To mark a bet as completed
+};
 
 export const PubNubConext = React.createContext<PubNubType | null>(null);
 
@@ -52,22 +62,32 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
   const [videoSyncData, setVideoSyncData] = useState<{startTimeInSeconds: number, endTimeInSeconds: number} | null>(null);
   const [sportsBookData, setSportsBookData] = useState<{[key: string]: any}>({});
 
+  // Initialize PubNub chat and set the user balance
   const initChat = async () => {
     const userId = `user_${Math.floor(Math.random() * 1000)}_${Date.now()}`;
-    try{
+    try {
       const chat = await Chat.init({
         publishKey: process.env.NEXT_PUBLIC_PUBNUB_PUBLISH_KEY,
         subscribeKey: process.env.NEXT_PUBLIC_PUBNUB_SUBSCRIBE_KEY,
         userId: userId,
         typingTimeout: 5000,
         storeUserActivityTimestamps: true,
-        storeUserActivityInterval: 300000, /* 5 minutes */
+        storeUserActivityInterval: 300000 /* 5 minutes */,
       });
 
       setChat(chat);
-      setUser(chat.currentUser);
-    }
-    catch(e){
+      let currentUser = chat.currentUser;
+
+      // Set initial user balance if not already set
+      if (!currentUser.custom?.balance) {
+        currentUser = await chat.currentUser.update({
+          custom: { balance: 250, bets: JSON.stringify([]) } // Initialize balance and bets in the custom field
+        });
+        setUser(currentUser); // Update user state with the new balance
+      } else {
+        setUser(currentUser);
+      }
+    } catch (e) {
       console.error("Failed to initialize PubNub:", e);
     }
   };
@@ -168,6 +188,8 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         console.error("Failed to parse bet data:", error);
       }
     });
+
+    return;
   }
 
   const subscribeToGame = async (id: string) => {
@@ -208,6 +230,8 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         console.error("Failed to parse message content:", error);
       }
     });
+
+    return;
   };
 
   const subscribeToPoll = async (id: string) => {
@@ -253,6 +277,8 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         console.error("Failed to process poll message:", error);
       }
     });
+
+    return;
   }
 
   const submitPollResult = async (vote: "Home" | "Away" | "Tie") => {
@@ -314,6 +340,82 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
     }
   };
 
+  // Place a bet and update the user context using user.custom
+  const placeBet = async (betDetails: BetDetails) => {
+    if (!user || !chat) return;
+
+    const currentBalance = user.custom?.balance || 250;
+    if (currentBalance < betDetails.amount) {
+      console.error("Insufficient balance");
+      return;
+    }
+
+    try {
+      // Subtract the bet amount from the user's balance
+      const newBalance = currentBalance - betDetails.amount;
+
+      // Retrieve and update the bets from user.custom
+      const currentBets = user.custom?.bets ? JSON.parse(user.custom.bets) : [];
+
+      // Add the new bet to the array
+      const updatedBets = [...currentBets, betDetails];
+
+      // Update the user's balance and bets in user.custom
+      const updatedUser = await chat.currentUser.update({
+        custom: {
+          balance: newBalance,
+          bets: JSON.stringify(updatedBets),
+        },
+      });
+
+      // Update the user state with the new data
+      setUser(updatedUser);
+      console.log("Bet placed:", betDetails);
+    } catch (error) {
+      console.error("Failed to place bet:", error);
+    }
+  };
+
+  // Calculate results when the game reaches intermission and mark bets as completed
+  const calculateResults = async () => {
+    if (!playbyplayState.length || !user || !chat) return;
+
+    const lastPlay = playbyplayState[playbyplayState.length - 1] || {};
+    const homeScore = lastPlay.HomeTeamScore || 0;
+    const awayScore = lastPlay.AwayTeamScore || 0;
+
+    let updatedUser = user;
+    const currentBets = JSON.parse(updatedUser?.custom?.bets || '[]') as BetDetails[];
+    let currentBalance = user?.custom?.balance || 250;
+
+    // Loop through each bet and calculate if the user won or lost
+    const updatedBets = currentBets.map((bet: BetDetails) => {
+      if (!bet.completed) {
+        if (
+          (bet.team === "Home" && homeScore > awayScore) ||
+          (bet.team === "Away" && awayScore > homeScore)
+        ) {
+          // User wins, calculate return based on odds
+          const potentialReturn = bet.amount * (bet.odds > 0 ? 1 + bet.odds / 100 : 1 - 100 / bet.odds);
+          currentBalance += potentialReturn;
+        }
+        // Mark the bet as completed
+        return { ...bet, completed: true };
+      }
+      return bet;
+    });
+
+    // Update user balance and store the updated bets in user.custom
+    updatedUser = await chat.currentUser.update({
+      custom: { balance: currentBalance, bets: JSON.stringify(updatedBets) },
+    });
+
+    // Update the user state with the new data
+    setUser(updatedUser);
+
+    console.log("Results calculated, updated balance:", currentBalance);
+  };
+
   // Initialize the PubNub instance
   useEffect(() => {
     if (!chat) {
@@ -341,7 +443,9 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         subscribeToPoll,
         submitPollResult,
         createPollChannel,
-        subscribeToBetting
+        subscribeToBetting,
+        placeBet,
+        calculateResults
       }}
     >
       {children}

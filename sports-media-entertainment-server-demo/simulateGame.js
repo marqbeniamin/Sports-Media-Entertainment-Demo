@@ -7,8 +7,8 @@ const simulateGame = async (chat, channel, pollChannel) => {
   const homeID = gameData['Game']['HomeTeamID'];
   const awayID = gameData['Game']['AwayTeamID'];
 
-  const syncDuration = 1000;
-  const timeoutDuration = 1000;
+  const syncDuration = 1700;
+  const timeoutDuration = 1700;
 
   // console.log(`Team IDs: ${homeID} vs ${awayID}`);
 
@@ -132,7 +132,7 @@ const simulateGame = async (chat, channel, pollChannel) => {
           await sendMessage(channel, JSON.stringify(freeThrowMessage));
         }
 
-        await PromiseTimeout((syncDuration + 10) * syncDuration);
+        await PromiseTimeout((syncDuration) * syncDuration);
       } else {
         gameState = updateGameState(gameState, play);
 

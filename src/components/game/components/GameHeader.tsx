@@ -5,12 +5,15 @@ import Image from "next/image";
 import { PubNubConext, PubNubType } from "@/context/PubNubContext";
 
 const GameHeader: React.FC = () => {
-  const { playbyplayState, gameState } = useContext(PubNubConext) as PubNubType;
+  const { playbyplayState, gameState, videoSyncData } = useContext(PubNubConext) as PubNubType;
 
   const [minutes, setMinutes] = useState<number>(0);
   const [seconds, setSeconds] = useState<number>(0);
+  const [isPaused, setIsPaused] = useState<boolean>(false); // State to control if the clock should be paused
+  const [showTimeout, setShowTimeout] = useState<boolean>(false); // State for displaying timeout
 
   useEffect(() => {
+    // When play-by-play state updates, set the initial time
     if (playbyplayState.length > 0) {
       const lastPlay = playbyplayState[playbyplayState.length - 1];
       setMinutes(lastPlay?.TimeRemainingMinutes || 0);
@@ -19,21 +22,48 @@ const GameHeader: React.FC = () => {
   }, [playbyplayState]);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSeconds((prevSeconds) => {
-        if (prevSeconds > 0) {
-          return prevSeconds - 1;
-        } else if (minutes > 0) {
-          setMinutes(minutes - 1);
-          return 59;
-        } else {
-          return 0;
-        }
-      });
-    }, 1000);
+    const { startTimeInSeconds, endTimeInSeconds } = videoSyncData || {};
 
-    return () => clearInterval(timer);
-  }, [minutes, seconds]);
+    if (startTimeInSeconds != null && endTimeInSeconds != null) {
+      // Calculate the timeout duration in seconds
+      const timeoutDuration = endTimeInSeconds - startTimeInSeconds;
+
+      // If there's a valid duration, show the timeout
+      if (timeoutDuration > 0) {
+        setIsPaused(true); // Pause the clock
+        setShowTimeout(true); // Show the timeout banner
+
+        // Automatically hide the timeout after the calculated duration
+        const timeout = setTimeout(() => {
+          setShowTimeout(false);
+          setIsPaused(false); // Resume the clock after the timeout is over
+        }, timeoutDuration * 1000); // Convert to milliseconds
+
+        // Cleanup the timeout if the component is unmounted or videoSyncData changes
+        return () => clearTimeout(timeout);
+      }
+    }
+  }, [videoSyncData]);
+
+  useEffect(() => {
+    // Only run the timer if it's not paused
+    if (!isPaused) {
+      const timer = setInterval(() => {
+        setSeconds((prevSeconds) => {
+          if (prevSeconds > 0) {
+            return prevSeconds - 1;
+          } else if (minutes > 0) {
+            setMinutes(minutes - 1);
+            return 59;
+          } else {
+            return 0;
+          }
+        });
+      }, 1000);
+
+      return () => clearInterval(timer); // Clean up the interval on unmount or when paused
+    }
+  }, [isPaused, minutes, seconds]);
 
   const quarter = playbyplayState[playbyplayState.length - 1]?.QuarterName || "1";
   const awayTeamScore = playbyplayState[playbyplayState.length - 1]?.AwayTeamScore || 0;
@@ -41,7 +71,14 @@ const GameHeader: React.FC = () => {
   const timeRemaining = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
   return (
-    <div className="bg-gray-800 text-gray-200 p-4 flex flex-col sm:flex-row justify-between items-center w-full rounded-lg shadow-md">
+    <div className="relative bg-gray-800 text-gray-200 p-4 flex flex-col sm:flex-row justify-between items-center w-full rounded-lg shadow-md">
+      {/* Timeout Indicator in the top-left corner */}
+      {showTimeout && (
+        <div className="absolute top-0 left-0 p-2 text-xs sm:text-sm bg-red-600 text-white rounded-br-lg">
+          Timeout
+        </div>
+      )}
+
       <div className="flex items-center space-x-2 mb-2 sm:mb-0">
         <Image
           src={`/logos/${gameState?.homeID ?? 5}.png`}

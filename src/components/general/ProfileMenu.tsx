@@ -3,18 +3,30 @@ import Image from 'next/image';
 import { PubNubConext, PubNubType } from '@/context/PubNubContext';
 import AvatarSelectionModal from './AvatarSelectionModal';
 
+// Define bet details
+type BetDetails = {
+  team: "Home" | "Away";
+  amount: number;
+  odds: number;
+  completed?: boolean; // To mark a bet as completed
+};
+
 const ProfileMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [name, setName] = useState("");
-  const [balance, setBalance] = useState(250); // Example balance
+  const [balance, setBalance] = useState(250); // Default balance, will be updated from user context
+  const [bets, setBets] = useState<BetDetails[]>([]); // Use Bet type for the bets array
   const [isAvatarModalOpen, setAvatarModalOpen] = useState(false); // Avatar modal state
   const { user, createUser } = useContext(PubNubConext) as PubNubType;
   const [isNameChanged, setIsNameChanged] = useState(false);
 
-  const bets = [
-    { team: "Team A", amount: 50, odds: "+200", returns: 150, date: "2023-08-28" },
-    { team: "Team B", amount: 75, odds: "-150", returns: 125, date: "2023-08-29" },
-    { team: "Team C", amount: 125, odds: "+300", returns: 375, date: "2023-09-01" },
-  ];
+  // Function to calculate potential returns based on odds and amount
+  const calculatePotentialReturns = (amount: number, odds: number) => {
+    if (odds > 0) {
+      return amount * (1 + odds / 100); // Positive odds formula
+    } else {
+      return amount * (1 - 100 / odds); // Negative odds formula
+    }
+  };
 
   const handleUpdateUser = async () => {
     await createUser(name, user?.profileUrl ?? '');
@@ -32,8 +44,14 @@ const ProfileMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   useEffect(() => {
-    setName(name);
-  }, [name])
+    setName(user?.name || '');
+    // Check if user has custom data, update balance and bets accordingly
+    const userBalance = user?.custom?.balance || 250; // Default balance if not set
+    const userBets = user?.custom?.bets ? JSON.parse(user.custom.bets) : []; // Parse bets if available
+
+    setBalance(userBalance);
+    setBets(userBets);
+  }, [user]);
 
   return (
     <>
@@ -110,26 +128,31 @@ const ProfileMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </div>
         </div>
 
-        {/* Past Bets Display */}
+        {/* Current Bets Display */}
         <div className="px-4">
-          <h4 className="text-md text-gray-400 mb-2">Past Bets</h4>
+          <h4 className="text-md text-gray-400 mb-2">Current Bets</h4>
           <div className="space-y-4">
-            {bets.map((bet, index) => (
-              <div key={index} className="bg-gray-800 p-4 rounded-lg shadow-md">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-white">Bet on {bet.team}</span>
-                  <span className="text-sm text-gray-400">{bet.date}</span>
+            {bets.length > 0 ? (
+              bets.map((bet, index) => (
+                <div key={index} className="bg-gray-800 p-4 rounded-lg shadow-md">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-white">Bet on {bet.team}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-gray-400">
+                    <span>Amount: <span className="text-white">${bet.amount}</span></span>
+                    <span>Odds: <span className="text-white">{bet.odds}</span></span>
+                  </div>
+                  <div className="mt-2 flex justify-between items-center text-sm text-gray-400">
+                    <span>Potential Returns</span>
+                    <span className="text-white">
+                      ${calculatePotentialReturns(bet.amount, bet.odds).toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center text-sm text-gray-400">
-                  <span>Amount: <span className="text-white">${bet.amount}</span></span>
-                  <span>Odds: <span className="text-white">{bet.odds}</span></span>
-                </div>
-                <div className="mt-2 flex justify-between items-center text-sm text-gray-400">
-                  <span>Potential Returns</span>
-                  <span className="text-white">${bet.returns}</span>
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-gray-500">No current bets.</p>
+            )}
           </div>
         </div>
       </div>

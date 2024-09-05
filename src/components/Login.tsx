@@ -14,14 +14,18 @@ export default function Login() {
   const { createUser, createChannel, createPollChannel, subscribeToGame, subscribeToPoll, subscribeToBetting } = useContext(PubNubConext) as PubNubType;
 
   const handleLogin = async () => {
+    const chatRoom = "chatroom";
+    const pollChannel = "poll-play-by-play-nets-magic-test";
+    const gameChannel = "play-by-play-nets-magic-test";
+    const bettingChannel = "betting-play-by-play-nets-magic-test";
     if (username && avatar) {
       try {
         await createUser(username, `/avatar/${avatar}`);
-        await createChannel("chatroom");
-        await createPollChannel("poll-play-by-play-2023-11-14-OKC-SAS");
-        await subscribeToGame('play-by-play-2023-11-14-OKC-SAS');
-        await subscribeToPoll('poll-play-by-play-2023-11-14-OKC-SAS');
-        await subscribeToBetting('betting-play-by-play-2023-11-14-OKC-SAS');
+        await createChannel(chatRoom);
+        await createPollChannel(pollChannel);
+        await subscribeToGame(gameChannel);
+        await subscribeToPoll(pollChannel);
+        await subscribeToBetting(bettingChannel);
         router.push("/game");
       } catch (e) {
         setError("Failed to login. Please try again.");
