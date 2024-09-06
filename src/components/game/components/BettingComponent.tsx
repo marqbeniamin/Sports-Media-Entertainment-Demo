@@ -3,6 +3,7 @@
 import { PubNubConext, PubNubType } from '@/context/PubNubContext';
 import React, { useContext, useState, useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
+import { Switch } from '@headlessui/react';
 
 // Define bet details locally
 type BetDetails = {
@@ -31,6 +32,9 @@ const BettingComponent: React.FC = () => {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false); // New state for loading
   const [errorMessage, setErrorMessage] = useState<string | null>(null); // New state for error message
+  const [useCoupon, setUseCoupon] = useState<boolean>(false); // State for coupon usage
+
+  const userCoupon = user?.custom?.coupon;
 
   useEffect(() => {
     // Sort the sportsBookData by the largest differential in moneylines
@@ -89,8 +93,13 @@ const BettingComponent: React.FC = () => {
   const submitBet = async () => {
     if (!selectedOdd || !betSelection || !betAmount) return;
 
-    const betAmountNumber = parseFloat(betAmount);
+    let betAmountNumber = parseFloat(betAmount);
     const currentBalance = user?.custom?.balance || 250;
+
+    // Apply the coupon discount if it's activated
+    if (useCoupon && userCoupon) {
+      betAmountNumber *= userCoupon;
+    }
 
     // Check if user has enough balance
     if (betAmountNumber > currentBalance) {
@@ -109,7 +118,7 @@ const BettingComponent: React.FC = () => {
     };
 
     try {
-      await placeBet(betDetails);
+      await placeBet(betDetails, useCoupon);
       closeModal();
     } catch (error) {
       console.error("Error placing bet:", error);
@@ -123,31 +132,26 @@ const BettingComponent: React.FC = () => {
         <p className="text-base sm:text-lg">{"Place your bets!"}</p>
         <p className="text-sm sm:text-base text-gray-400">Orlando Magic vs. Brooklyn Nets</p>
       </div>
-      {Object.keys(sportsBookData).length === 0 ? (
-        <div className="w-full text-center py-10 bg-gray-700 rounded-lg">
-          <p className="text-lg">Betting Unavailable</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {displayedOdds.map((odd) => (
-            <div
-              key={odd?.GameOddId || odd.Sportsbook}
-              className={`relative flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-colors duration-300 ${
-                selectedOdd === odd ? 'bg-blue-600 border-blue-400' : 'bg-gray-700 border-gray-600'
-              }`}
-              onClick={() => handleBetSelection(odd)}
-            >
-              <span className="text-lg font-bold">{odd.Sportsbook}</span>
-              <div className="flex flex-col items-center mt-2">
-                <span className="text-sm">Home Money Line: {odd.HomeMoneyLine}</span>
-                <span className="text-sm">Away Money Line: {odd.AwayMoneyLine}</span>
-                <span className="text-sm">Home Spread: {odd.HomePointSpread}</span>
-                <span className="text-sm">Away Spread: {odd.AwayPointSpread}</span>
-              </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {displayedOdds.map((odd) => (
+          <div
+            key={odd?.GameOddId || odd.Sportsbook}
+            className={`relative flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-colors duration-300 ${
+              selectedOdd === odd ? 'bg-blue-600 border-blue-400' : 'bg-gray-700 border-gray-600'
+            }`}
+            onClick={() => handleBetSelection(odd)}
+          >
+            <span className="text-lg font-bold">{odd.Sportsbook}</span>
+            <div className="flex flex-col items-center mt-2">
+              <span className="text-sm">Home Money Line: {odd.HomeMoneyLine}</span>
+              <span className="text-sm">Away Money Line: {odd.AwayMoneyLine}</span>
+              <span className="text-sm">Home Spread: {odd.HomePointSpread}</span>
+              <span className="text-sm">Away Spread: {odd.AwayPointSpread}</span>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
       {showModal && selectedOdd && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
@@ -161,13 +165,14 @@ const BettingComponent: React.FC = () => {
             <p className="mb-4">
               Betting through <span className="font-bold">{selectedOdd.Sportsbook}</span>
             </p>
+
             <div className="flex justify-center space-x-4 mb-4">
               <button
                 className={`px-4 py-2 rounded-lg text-sm ${
                   betSelection === 'home' ? 'bg-blue-600' : 'bg-gray-700'
                 }`}
                 onClick={() => setBetSelection('home')}
-                disabled={isLoading} // Disable buttons when loading
+                disabled={isLoading}
               >
                 Home Money Line: {selectedOdd.HomeMoneyLine}
               </button>
@@ -176,41 +181,61 @@ const BettingComponent: React.FC = () => {
                   betSelection === 'away' ? 'bg-blue-600' : 'bg-gray-700'
                 }`}
                 onClick={() => setBetSelection('away')}
-                disabled={isLoading} // Disable buttons when loading
+                disabled={isLoading}
               >
                 Away Money Line: {selectedOdd.AwayMoneyLine}
               </button>
             </div>
+
+            {/* Coupon activation */}
+            {userCoupon && userCoupon < 1.0 && (
+              <div className="mb-4">
+                <Switch
+                  checked={useCoupon}
+                  onChange={setUseCoupon}
+                  className={`${useCoupon ? 'bg-blue-600' : 'bg-gray-700'} relative inline-flex items-center h-6 rounded-full w-11`}
+                >
+                  <span className="sr-only">Activate Coupon</span>
+                  <span
+                    className={`${useCoupon ? 'translate-x-6' : 'translate-x-1'} inline-block w-4 h-4 transform bg-white rounded-full transition`}
+                  />
+                </Switch>
+                <p className="text-sm mt-2 text-gray-400">
+                  {useCoupon
+                    ? `Coupon applied: ${userCoupon * 100}% off!`
+                    : 'Activate coupon to get a discount on your bet.'}
+                </p>
+              </div>
+            )}
+
             <input
               type="text"
               value={betAmount}
               onChange={handleBetAmountChange}
               placeholder="Enter bet amount"
               className="w-full p-2 text-gray-900 rounded-lg mb-4"
-              disabled={isLoading} // Disable input when loading
+              disabled={isLoading}
             />
-            {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
+
             <p className="mb-4">
               Potential Returns: <span className="font-bold">${calculatePotentialReturns()}</span>
             </p>
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded-lg w-full"
               onClick={submitBet}
-              disabled={isLoading} // Disable button when loading
+              disabled={isLoading}
             >
               {isLoading ? 'Placing Bet...' : 'Place Bet'}
             </button>
           </div>
         </div>
       )}
+
       <div className="text-sm sm:text-base text-gray-400 text-center mt-6">
-        This is a demo powered by PubNub, showcasing betting and monetization features. Please note that we do not handle actual transactions or the purchase of money lines.
-      </div>
-      <div className="text-sm sm:text-base text-gray-400 text-center mt-2">
-        For real betting activities, please refer to licensed platforms. This demo is for illustrative purposes only.
+        This is a demo powered by PubNub, showcasing betting and monetization features.
       </div>
     </div>
-  );
+  )
 };
 
 export default BettingComponent;

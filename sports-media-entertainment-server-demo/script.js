@@ -32,7 +32,7 @@ const main = async () => {
     bettingChannel = await createChannel(chat, bettingChannelId);
   }
 
-  // simulatePreGameBetting(bettingChannel);
+  simulatePreGameBetting(bettingChannel);
   await simulateGame(channel);
 }
 

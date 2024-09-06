@@ -43,8 +43,9 @@ export interface PubNubType {
   subscribeToGame: (id: string) => Promise<void>;
   subscribeToPoll: (id: string) => Promise<void>;
   subscribeToBetting: (id: string) => Promise<void>;
+  subscribeToCoupon: (id: string) => Promise<void>;
   submitPollResult: (vote: "Home" | "Away" | "Tie") => Promise<void>;
-  placeBet: (betDetails: BetDetails) => Promise<void>;
+  placeBet: (betDetails: BetDetails, coupon: boolean) => Promise<void>;
   setActiveChannel: React.Dispatch<React.SetStateAction<Channel | undefined>>,
   getCommunities: () => Promise<void>
 }
@@ -82,6 +83,7 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
 
   // Initialize PubNub chat and set the user balance
   const initChat = async () => {
+    console.log("INIT CHAT RUNS");
     const userId = `user_${Math.floor(Math.random() * 1000)}_${Date.now()}`;
     try {
       const chat = await Chat.init({
@@ -99,13 +101,14 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
       // Set initial user balance if not already set
       if (!currentUser.custom?.balance) {
         currentUser = await chat.currentUser.update({
-          custom: { balance: 250, bets: JSON.stringify([]) } // Initialize balance and bets in the custom field
+          custom: { balance: 250, bets: JSON.stringify([]), coupon: 1.0 } // Initialize balance and bets in the custom field
         });
         setUser(currentUser); // Update user state with the new balance
       } else {
         setUser(currentUser);
       }
     } catch (e) {
+      console.log(e);
       console.error("Failed to initialize PubNub:", e);
     }
   };
@@ -188,7 +191,10 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
       "play-by-play-2023-11-14-OKC-SAS",
       "play-by-play-nets-magic-test",
       "poll-play-by-play-2023-11-14-OKC-SAS",
-      "poll-play-by-play-nets-magic-test"
+      "poll-play-by-play-nets-magic-test",
+      "betting-play-by-play-nets-magic",
+      "play-by-play-nets-magic",
+      "poll-play-by-play-nets-magic"
     ];
 
     try {
@@ -304,7 +310,40 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
     couponChannel = await getChannel(id);
 
     couponChannel.join(async (message: Message) => {
+      try {
+        console.log("Coupon message content");
+        console.log(message.content.text);
 
+        let discount: number;
+
+        /// Find out which discount you should get on your next bet
+        switch (message.content.text) {
+          case "1/10":
+            discount = 0.90;
+            break;
+          case "1/5":
+            discount = 0.80;
+            break;
+          case "1/2":
+            discount = 0.5;
+            break;
+          default:
+            discount = 1.0;
+            break;
+        }
+
+        // Update the user's balance and bets in user.custom
+      const updatedUser = await chat.currentUser.update({
+        custom: {
+          balance: user?.custom.balance,
+          bets: user?.custom.bets,
+          coupon: discount
+        },
+      });
+      }
+      catch(e){
+        console.log(e);
+      }
     });
   }
 
@@ -452,18 +491,24 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
   };
 
   // Place a bet and update the user context using user.custom
-  const placeBet = async (betDetails: BetDetails) => {
+  const placeBet = async (betDetails: BetDetails, coupon: boolean) => {
     if (!user || !chat) return;
 
+    var betDetailsAmount = betDetails.amount;
+
+    if(coupon){
+      betDetailsAmount *= user.custom?.coupon ?? 1.0;
+    }
+
     const currentBalance = user.custom?.balance || 250;
-    if (currentBalance < betDetails.amount) {
+    if (currentBalance < betDetailsAmount) {
       console.error("Insufficient balance");
       return;
     }
 
     try {
       // Subtract the bet amount from the user's balance
-      const newBalance = currentBalance - betDetails.amount;
+      const newBalance = currentBalance - betDetailsAmount;
 
       // Retrieve and update the bets from user.custom
       const currentBets = user.custom?.bets ? JSON.parse(user.custom.bets) : [];
@@ -476,6 +521,7 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         custom: {
           balance: newBalance,
           bets: JSON.stringify(updatedBets),
+          coupon: coupon ? 1.0 : user.custom?.coupon
         },
       });
 
@@ -555,6 +601,7 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         submitPollResult,
         createPollChannel,
         subscribeToBetting,
+        subscribeToCoupon,
         placeBet,
         createCommunity,
         setActiveChannel,
