@@ -1,3 +1,13 @@
+const PubNub = require('pubnub');
+require('dotenv').config();
+
+const pubnub = new PubNub({
+  publishKey: process.env.PUBNUB_PUBLISH_KEY,  // Loaded from .env
+    subscribeKey: process.env.PUBNUB_SUBSCRIBE_KEY,  // Loaded from .env
+    secretKey: process.env.PUBNUB_SECRET_KEY,  // Loaded from .env
+    userId: "SIM"
+});
+
 function PromiseTimeout(delayms) {
   return new Promise(function (resolve, reject) {
     setTimeout(resolve, delayms);
@@ -6,15 +16,18 @@ function PromiseTimeout(delayms) {
 
 const sendMessage = async (channel, message) => {
   try {
-    // console.log("PUBLISHING MESSAGE");
-    const result = await channel.sendText(message, {
+    await pubnub.publish({
+      channel: channel.id, // the channel name
+      message: message,
+      storeInHistory: true // option to store the message in history
+    });
+    await channel.sendText(JSON.stringify(message), {
       storeInHistory: true
     });
-    // console.log("Message published: ", result.timetoken);
   } catch (error) {
     console.log("Publish failed: ", error);
   }
-}
+};
 
 const createChannel = async (chat, id) => {
   try {

@@ -12,9 +12,9 @@ const main = async () => {
     userId: "SIM"
   });
 
-  const channelId = 'play-by-play-nets-magic-test';
-  const pollChannelId = 'poll-play-by-play-nets-magic-test';
-  const bettingChannelId = 'betting-play-by-play-nets-magic-test';
+  const channelId = 'play-by-play-nets-magic';
+  const pollChannelId = 'poll-play-by-play-nets-magic';
+  const bettingChannelId = 'betting-play-by-play-nets-magic';
 
   let channel = await chat.getChannel(channelId);
   let pollChannel = await chat.getChannel(pollChannelId);
@@ -32,8 +32,8 @@ const main = async () => {
     bettingChannel = await createChannel(chat, bettingChannelId);
   }
 
-  simulatePreGameBetting(bettingChannel);
-  await simulateGame(chat, channel, pollChannel, bettingChannel);
+  // simulatePreGameBetting(bettingChannel);
+  await simulateGame(channel);
 }
 
 main();

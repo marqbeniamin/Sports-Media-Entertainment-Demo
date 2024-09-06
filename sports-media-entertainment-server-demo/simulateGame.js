@@ -1,7 +1,7 @@
 const fs = require('fs');
 const { PromiseTimeout, sendMessage } = require('./utils');
 
-const simulateGame = async (chat, channel, pollChannel) => {
+const simulateGame = async (channel) => {
   const gameData = JSON.parse(fs.readFileSync('nets_vs_magic_2022/Play by Play_Nets_Magic_3.15.2022.json', 'utf8'));
   const plays = gameData['Plays'];
   const homeID = gameData['Game']['HomeTeamID'];
@@ -102,7 +102,7 @@ const simulateGame = async (chat, channel, pollChannel) => {
           videoSyncTime
         };
 
-        await sendMessage(channel, JSON.stringify(message));
+        await sendMessage(channel, message);
 
         const syncDuration = videoSyncTime.videoEndTimeInSeconds - videoSyncTime.videoStartTimeInSeconds;
 
@@ -129,7 +129,7 @@ const simulateGame = async (chat, channel, pollChannel) => {
             updateType: 'FreeThrowsProcessed',
             points: freeThrowPoints
           };
-          await sendMessage(channel, JSON.stringify(freeThrowMessage));
+          await sendMessage(channel, freeThrowMessage);
         }
 
         await PromiseTimeout((syncDuration) * syncDuration);
@@ -142,7 +142,7 @@ const simulateGame = async (chat, channel, pollChannel) => {
           simulatedElapsedTime
         };
 
-        await sendMessage(channel, JSON.stringify(message));
+        await sendMessage(channel, message);
 
         if (i < plays.length - 1) {
           const nextPlay = plays[i + 1];
@@ -161,7 +161,7 @@ const simulateGame = async (chat, channel, pollChannel) => {
     console.log("INTERMISSION REACHED");
 
     // Restarting the game in 2 minutes
-    await sendMessage(channel, JSON.stringify({ restart: true }));
+    await sendMessage(channel, { restart: true });
 
     await PromiseTimeout(2 * 60 * timeoutDuration);
     // After intermission, reset `i` to start the game again
