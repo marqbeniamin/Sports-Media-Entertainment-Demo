@@ -11,13 +11,13 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const { createUser, createChannel, createPollChannel, subscribeToGame, subscribeToPoll, subscribeToBetting } = useContext(PubNubConext) as PubNubType;
+  const { createUser, createChannel, createPollChannel, subscribeToGame, subscribeToPoll, subscribeToBetting, getCommunities } = useContext(PubNubConext) as PubNubType;
 
   const handleLogin = async () => {
     const chatRoom = "chatroom";
-    const pollChannel = "poll-play-by-play-nets-magic-test";
-    const gameChannel = "play-by-play-nets-magic-test";
-    const bettingChannel = "betting-play-by-play-nets-magic-test";
+    const pollChannel = "poll-play-by-play-nets-magic";
+    const gameChannel = "play-by-play-nets-magic";
+    const bettingChannel = "betting-play-by-play-nets-magic";
     if (username && avatar) {
       try {
         await createUser(username, `/avatar/${avatar}`);
@@ -26,6 +26,7 @@ export default function Login() {
         await subscribeToGame(gameChannel);
         await subscribeToPoll(pollChannel);
         await subscribeToBetting(bettingChannel);
+        await getCommunities();
         router.push("/game");
       } catch (e) {
         setError("Failed to login. Please try again.");

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { PubNubConext, PubNubType } from '@/context/PubNubContext';
 import AvatarSelectionModal from './AvatarSelectionModal';
+import { Channel } from '@pubnub/chat';
 
 // Define bet details
 type BetDetails = {
@@ -16,8 +17,12 @@ const ProfileMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [balance, setBalance] = useState(250); // Default balance, will be updated from user context
   const [bets, setBets] = useState<BetDetails[]>([]); // Use Bet type for the bets array
   const [isAvatarModalOpen, setAvatarModalOpen] = useState(false); // Avatar modal state
-  const { user, createUser } = useContext(PubNubConext) as PubNubType;
+  const { user, yourCommunities, setActiveChannel, createUser } = useContext(PubNubConext) as PubNubType;
   const [isNameChanged, setIsNameChanged] = useState(false);
+
+  // Separate bets into active and completed bets
+  const activeBets = bets.filter(bet => !bet.completed);
+  const completedBets = bets.filter(bet => bet.completed);
 
   // Function to calculate potential returns based on odds and amount
   const calculatePotentialReturns = (amount: number, odds: number) => {
@@ -41,6 +46,12 @@ const ProfileMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const handleAvatarSelect = async (avatar: string) => {
     setAvatarModalOpen(false);
     await createUser(name, `/avatar/${avatar}`);
+  };
+
+  // Function to handle joining a community's chat
+  const handleJoinCommunity = (community: Channel) => {
+    setActiveChannel(community); // Set the active channel to the selected community
+    onClose(); // Close the profile menu
   };
 
   useEffect(() => {
@@ -132,8 +143,8 @@ const ProfileMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         <div className="px-4">
           <h4 className="text-md text-gray-400 mb-2">Current Bets</h4>
           <div className="space-y-4">
-            {bets.length > 0 ? (
-              bets.map((bet, index) => (
+            {activeBets.length > 0 ? (
+              activeBets.map((bet, index) => (
                 <div key={index} className="bg-gray-800 p-4 rounded-lg shadow-md">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-white">Bet on {bet.team}</span>
@@ -155,6 +166,61 @@ const ProfileMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             )}
           </div>
         </div>
+
+        {/* Completed Bets Display */}
+        <div className="px-4 mt-8">
+          <h4 className="text-md text-gray-400 mb-2">Completed Bets</h4>
+          <div className="space-y-4">
+            {completedBets.length > 0 ? (
+              completedBets.map((bet, index) => (
+                <div key={index} className="bg-gray-700 p-4 rounded-lg shadow-md">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-white">Bet on {bet.team}</span>
+                    <span className="text-sm text-green-400">Completed</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm text-gray-400">
+                    <span>Amount: <span className="text-white">${bet.amount}</span></span>
+                    <span>Odds: <span className="text-white">{bet.odds}</span></span>
+                  </div>
+                  <div className="mt-2 flex justify-between items-center text-sm text-gray-400">
+                    <span>Potential Returns</span>
+                    <span className="text-white">
+                      ${calculatePotentialReturns(bet.amount, bet.odds).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500">No completed bets.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Your Communities Display */}
+        <div className="px-4 mt-8">
+          <h4 className="text-md text-gray-400 mb-2">Your Communities</h4>
+          <div className="space-y-4">
+            {yourCommunities.length > 0 ? (
+              yourCommunities.map((community, index) => (
+                <div
+                  key={index}
+                  className="bg-gray-700 p-4 rounded-lg shadow-md flex justify-between items-center"
+                >
+                  <span className="text-white">{community.name}</span>
+                  <button
+                    onClick={() => handleJoinCommunity(community)}
+                    className="text-blue-500 hover:underline transition"
+                  >
+                    Join
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-500">You are not part of any communities yet.</p>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* Avatar Selection Modal */}

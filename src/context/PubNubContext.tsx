@@ -11,10 +11,16 @@ type PollResults = {
   Total: number;
 };
 
+type Trivia = {
+  question: string,
+  answers: string[]
+}
+
 export interface PubNubType {
   chat: Chat | undefined;
   user: User | undefined;
   channel: Channel | undefined;
+  communities: Channel[];
   pollChannel: Channel | undefined;
   playbyplayState: any;
   gameState: any;
@@ -22,16 +28,25 @@ export interface PubNubType {
   isIntermission: boolean,
   pollResultSubmitted: boolean,
   videoSyncData: {startTimeInSeconds: number, endTimeInSeconds: number} | null,
-  sportsBookData: { [key: string]: any }
+  sportsBookData: { [key: string]: any },
+  activeChannel: Channel | undefined,
+  yourCommunities: Channel[],
   createUser: (username: string, profileImg: string) => Promise<void>;
   createChannel: (id: string) => Promise<void>;
   createPollChannel: (id: string) => Promise<void>;
+  createCommunity: (
+    id: string,
+    name: string,
+    description: string,
+    trivia?: Trivia // Make trivia optional with "?" syntax
+  ) => Promise<Channel | undefined>,
   subscribeToGame: (id: string) => Promise<void>;
   subscribeToPoll: (id: string) => Promise<void>;
   subscribeToBetting: (id: string) => Promise<void>;
   submitPollResult: (vote: "Home" | "Away" | "Tie") => Promise<void>;
   placeBet: (betDetails: BetDetails) => Promise<void>;
-  calculateResults: () => void;
+  setActiveChannel: React.Dispatch<React.SetStateAction<Channel | undefined>>,
+  getCommunities: () => Promise<void>
 }
 
 // Define bet details
@@ -48,6 +63,8 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
   const [chat, setChat] = useState<Chat>();
   const [user, setUser] = useState<User>();
   const [channel, setChannel] = useState<Channel>();
+  const [communities, setCommunities] = useState<Channel[]>([]);
+  const [yourCommunities, setYourCommunities] = useState<Channel[]>([]);
   const [pollChannel, setPollChannel] = useState<Channel>();
   const [playbyplayState, setplaybyplayState] = useState<any[]>([]);
   const [gameState, setGameState] = useState<any>({});
@@ -61,6 +78,7 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
   const [pollResultSubmitted, setPollResultSubmitted] = useState<boolean>(false);
   const [videoSyncData, setVideoSyncData] = useState<{startTimeInSeconds: number, endTimeInSeconds: number} | null>(null);
   const [sportsBookData, setSportsBookData] = useState<{[key: string]: any}>({});
+  const [activeChannel, setActiveChannel] = useState<Channel | undefined>(channel);
 
   // Initialize PubNub chat and set the user balance
   const initChat = async () => {
@@ -93,7 +111,7 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
   };
 
   const createUser = async (username: string, profileImg: string) => {
-    console.log("Running create User");
+    // console.log("Running create User");
     if (chat === undefined) {
       throw new Error("This function must be used within a PubNubProvider");
     }
@@ -115,6 +133,7 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
 
   const createChannel = async (id: string) => {
     let channel = await getChannel(id);
+    setActiveChannel(channel);
     setChannel(channel);
   }
 
@@ -143,10 +162,95 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
       });
     }
 
-    console.log(newChannel);
-
     return newChannel;
   }
+
+  // const getCommunity = async (id: string): Promise<Channel | null> => {
+  //   if(chat === undefined){
+  //     throw new Error("This function must be used within a PubNubProvider");
+  //   }
+  //   let newCommunity: Channel | null;
+
+  //   newCommunity = await chat.getChannel(id);
+
+  //   return newCommunity;
+  // }
+
+  const getCommunities = async (): Promise<void> => {
+    if (chat === undefined) {
+      throw new Error("This function must be used within a PubNubProvider");
+    }
+
+    const filterList = [
+      "Publib Conversation - chatroom",
+      "betting-play-by-play-2023-11-14-OKC-SAS",
+      "betting-play-by-play-nets-magic-test",
+      "play-by-play-2023-11-14-OKC-SAS",
+      "play-by-play-nets-magic-test",
+      "poll-play-by-play-2023-11-14-OKC-SAS",
+      "poll-play-by-play-nets-magic-test"
+    ];
+
+    try {
+      const channelData = await chat.getChannels({
+        filter: "type=='public'",
+        limit: 50,
+      });
+
+      // Exclude channels that are in the filterList
+      const communities = channelData.channels.filter(channel => !filterList.includes(channel.name || ''));
+
+      setCommunities(communities); // Set filtered communities in state
+    } catch (error) {
+      console.error("Error fetching communities:", error);
+    }
+  };
+
+  const createCommunity = async (
+    id: string,
+    name: string,
+    description: string,
+    trivia?: Trivia // Make trivia optional with "?" syntax
+  ): Promise<Channel | undefined> => {
+
+    if (chat === undefined) {
+      throw new Error("This function must be used within a PubNubProvider");
+    }
+
+    let channel: Channel | undefined;
+
+    try {
+      // Create the custom data object
+      const customData: { user: string; trivia_question?: string; trivia_answers?: string } = {
+        user: chat.currentUser.id,
+      };
+
+      // If trivia is provided, flatten it and add it to the custom data
+      if (trivia) {
+        customData.trivia_question = trivia.question;
+        customData.trivia_answers = trivia.answers.join(", "); // Store answers as a comma-separated string
+      }
+
+      // Create the channel with the provided data
+      channel = await chat.createPublicConversation({
+        channelId: id,
+        channelData: {
+          name: name,
+          description: description,
+          custom: customData,
+        },
+      });
+    } catch (error) {
+      console.log("Failed to create the community: ", error);
+    }
+
+    if (channel) {
+      setCommunities((prevState: any) => [...prevState, channel]);
+      setYourCommunities((prevState: any) => [...prevState, channel]);
+    }
+
+    return channel;
+  };
 
   function promiseTimeout(delayms: number) {
     return new Promise(function (resolve, reject) {
@@ -192,6 +296,18 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
     return;
   }
 
+  const subscribeToCoupon = async (id: string) => {
+    if(!chat) return;
+
+    let couponChannel: Channel | null;
+
+    couponChannel = await getChannel(id);
+
+    couponChannel.join(async (message: Message) => {
+
+    });
+  }
+
   const subscribeToGame = async (id: string) => {
     if (!chat) return;
 
@@ -200,14 +316,15 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
     gameChannel = await getChannel(id);
 
     gameChannel.join(async (message: Message) => {
+      console.log("Messaged received");
       try {
         const messageContent = message.content.text;
         const parsedData = JSON.parse(messageContent);
 
-        // console.log(parsedData);
+        console.log(parsedData);
 
         if (parsedData.restart) {
-          console.log("Parsed Data Restart Received");
+          await calculateResults()
           setIsIntermission(true);
           setGameState({});
           setplaybyplayState([]);
@@ -241,16 +358,11 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
 
     pollChannel = await getChannel(id);
 
-    console.log("Fetching Poll History");
-
     await fetchPollHistory(id);
 
     pollChannel.join(async (message: Message) => {
       try {
         const messageContent = message.content.text;
-
-        console.log("Poll submitted");
-        console.log(messageContent);
 
         if (messageContent.includes("Home") || messageContent.includes("Away") || messageContent.includes("Tie")) {
           setPollResults(prevResults => {
@@ -288,7 +400,6 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
       await pollChannel.sendText(message, {
         storeInHistory: true,
       });
-      console.log("Poll result submitted:", message);
     } catch (error) {
       console.error("Failed to submit poll result:", error);
     }
@@ -370,7 +481,6 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
 
       // Update the user state with the new data
       setUser(updatedUser);
-      console.log("Bet placed:", betDetails);
     } catch (error) {
       console.error("Failed to place bet:", error);
     }
@@ -412,8 +522,6 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
 
     // Update the user state with the new data
     setUser(updatedUser);
-
-    console.log("Results calculated, updated balance:", currentBalance);
   };
 
   // Initialize the PubNub instance
@@ -437,6 +545,9 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         pollResultSubmitted,
         videoSyncData,
         sportsBookData,
+        communities,
+        activeChannel,
+        yourCommunities,
         createUser,
         createChannel,
         subscribeToGame,
@@ -445,7 +556,9 @@ export const PubNubContextProvider = ({ children }: { children: ReactNode }) => 
         createPollChannel,
         subscribeToBetting,
         placeBet,
-        calculateResults
+        createCommunity,
+        setActiveChannel,
+        getCommunities
       }}
     >
       {children}

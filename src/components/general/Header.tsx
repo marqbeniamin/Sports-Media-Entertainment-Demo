@@ -2,13 +2,19 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import ProfileMenu from './ProfileMenu'; // Import the new ProfileMenu component
+import ProfileMenu from './ProfileMenu'; // Import the ProfileMenu component
+import CreateCommunityModal from './CreateCommunityModal'; // Import the new CreateCommunityModal component
 
 const Header: React.FC = () => {
   const [isProfileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [isCommunityModalOpen, setCommunityModalOpen] = useState(false);
 
   const toggleProfileMenu = () => {
     setProfileMenuOpen(!isProfileMenuOpen);
+  };
+
+  const toggleCommunityModal = () => {
+    setCommunityModalOpen(!isCommunityModalOpen);
   };
 
   return (
@@ -19,8 +25,11 @@ const Header: React.FC = () => {
           <span className="text-lg sm:text-xl font-semibold pl-2">Sports Media & Entertainment</span>
         </div>
         <div className="flex flex-wrap items-center space-x-2 sm:space-x-4">
-          <button className="bg-blue-600 px-3 py-2 rounded-lg text-xs sm:text-sm mb-2 sm:mb-0">
-            New Message / Group
+          <button
+            className="bg-blue-600 px-3 py-2 rounded-lg text-xs sm:text-sm mb-2 sm:mb-0"
+            onClick={toggleCommunityModal} // Open the modal on click
+          >
+            Create Community
           </button>
           <div className="flex items-center space-x-2">
             <button className="relative">
@@ -36,7 +45,9 @@ const Header: React.FC = () => {
           </div>
         </div>
       </div>
+
       {isProfileMenuOpen && <ProfileMenu onClose={toggleProfileMenu} />}
+      {isCommunityModalOpen && <CreateCommunityModal onClose={toggleCommunityModal} />}
     </>
   );
 };
