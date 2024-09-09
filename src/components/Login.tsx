@@ -4,6 +4,10 @@ import { useContext, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { PubNubConext, PubNubType } from "@/context/PubNubContext";
+import { Button, Input } from "@material-tailwind/react";
+
+
+
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -47,14 +51,17 @@ export default function Login() {
         {/* Left Section: Login Form */}
         <div className="lg:w-1/2 w-full mb-8 lg:mb-0">
           <h1 className="text-4xl font-bold mb-8 text-white">Join the stream!</h1>
+           <Input className="w-full mb-4">
+              <Input.Field 
+                type="text" 
+                placeholder="Enter your username" 
+                value={username} 
+                onChange={(e: any) => setUsername(e.target.value)}
+              />
+           </Input>
 
-          <input
-            type="text"
-            placeholder="Enter your username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="mb-4 w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-base text-white"
-          />
+          
+
 
           <h2 className="text-lg font-semibold mb-4 text-gray-300">Select an Avatar</h2>
           <div className="flex space-x-4 mb-8">
@@ -79,12 +86,14 @@ export default function Login() {
 
           {error && <p className="text-red-500 mb-4">{error}</p>}
 
-          <button
+          {/* <button
             onClick={handleLogin}
             className="w-full p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-base"
           >
             Login
-          </button>
+          </button> */}
+          <Button color="primary" onClick={handleLogin} className="w-full mt-4">Login</Button>
+          
         </div>
 
         {/* Right Section: Client Logos */}
