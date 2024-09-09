@@ -1,10 +1,12 @@
 import type { Config } from "tailwindcss";
+import { mtConfig } from "@material-tailwind/react";
 
 const config: Config = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./node_modules/@material-tailwind/react/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -14,8 +16,6 @@ const config: Config = {
           "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
       },
       colors: {
-        primary: '#1E40AF', // Example primary color
-        secondary: '#FBBF24', // Example secondary color
         background: '#F3F4F6', // Example background color
         surface: '#FFFFFF', // Example surface color
       },
@@ -27,6 +27,6 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [mtConfig],
 };
 export default config;
